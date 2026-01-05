@@ -1,0 +1,24 @@
+# Example KiroForge Configuration
+# Copy to kiroforge.yaml or ~/.kiroforge/config.yaml to use
+
+router:
+  min_score: 2              # Minimum score for power selection
+  max_results: 15           # Maximum results to return
+  fuzzy_threshold: 0.7      # Fuzzy matching threshold (0.0-1.0)
+  keyword_threshold: 0.4    # Keyword overlap threshold (0.0-1.0)
+  semantic_threshold: 0.3   # Semantic matching threshold (0.0-1.0)
+
+validation:
+  max_file_size: 2097152    # Maximum YAML file size (2MB)
+  strict_spdx: true         # Require strict SPDX license identifiers
+  require_tests: true       # Require test files for all powers
+
+templates:
+  custom_templates_dir: null        # Path to custom templates directory
+  default_template_set: "foundational"  # Default template set for steering
+
+kiro:
+  timeout: 120              # Timeout for kiro-cli calls in seconds
+  trust_mode: "custom"      # Default trust mode: all, none, or custom
+  wrap_mode: "never"        # Output wrapping mode: auto, never, always
+  debug: false              # Enable debug output for kiro-cli calls

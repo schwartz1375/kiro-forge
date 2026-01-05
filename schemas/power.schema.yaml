@@ -1,0 +1,47 @@
+# Draft schema for POWER.md (YAML)
+# This is intentionally minimal; evolve as spec stabilizes.
+
+type: object
+required:
+  - meta
+properties:
+  meta:
+    type: object
+    required: [name, description, version]
+    properties:
+      name: { type: string }
+      description: { type: string }
+      version: { type: string }
+      author: { type: string }
+      license: { type: string }
+      homepage: { type: string }
+  triggers:
+    type: object
+    properties:
+      phrases: { type: array, items: { type: string } }
+      domains: { type: array, items: { type: string } }
+      files: { type: array, items: { type: string } }
+  constraints:
+    type: object
+    properties:
+      allowed_tools: { type: array, items: { type: string } }
+      denied_tools: { type: array, items: { type: string } }
+      sandbox_notes: { type: string }
+      requires_network: { type: boolean }
+  resources:
+    type: object
+    properties:
+      steering_files: { type: array, items: { type: string } }
+      tools_files: { type: array, items: { type: string } }
+      hooks_files: { type: array, items: { type: string } }
+      assets: { type: array, items: { type: string } }
+  tests:
+    type: object
+    properties:
+      tests_path: { type: string }
+      expected_behaviors: { type: array, items: { type: string } }
+  compatibility:
+    type: object
+    properties:
+      kiro_version: { type: string }
+      platforms: { type: array, items: { type: string } }

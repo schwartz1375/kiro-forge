@@ -1,0 +1,6 @@
+cases:
+  - name: demo-basic
+    prompt: "Run the demo power."
+    expected:
+      - "power: demo-power"
+      - "tools_files: tools.yaml"

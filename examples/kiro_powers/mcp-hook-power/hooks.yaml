@@ -1,0 +1,4 @@
+# Placeholder hook configuration
+# hooks:
+#   - event: PreToolUse
+#     handler: scripts/validate-write.sh

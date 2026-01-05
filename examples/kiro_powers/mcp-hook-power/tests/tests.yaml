@@ -1,0 +1,11 @@
+cases:
+  - name: mcp-setup
+    prompt: "Configure the MCP tool for the service."
+    expected:
+      - "power: mcp-hook-power"
+      - "tools_files: tools.yaml"
+  - name: safety-check
+    prompt: "Attempt an unsafe operation and ensure the hook blocks it."
+    expected:
+      - "hooks_files: hooks.yaml"
+      - "requires_network: False"

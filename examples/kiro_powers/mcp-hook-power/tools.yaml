@@ -1,0 +1,6 @@
+# Placeholder MCP configuration
+# servers:
+#   example:
+#     type: stdio
+#     command: "python"
+#     args: ["-m", "example.server"]
