@@ -377,6 +377,29 @@ my-new-power/
     └── tests.yaml
 ```
 
+Agent scaffold created by `kiroforge init-agent ./my-agent`:
+
+```
+my-agent/
+├── agent.yaml
+├── system-prompt.md
+├── powers/
+└── tests/
+    └── test_responses.yaml
+```
+
+Collection scaffold created by `kiroforge init-collection ./my-collection`:
+
+```
+my-collection/
+├── collection.yaml
+├── agents/
+│   ├── agent1/
+│   └── agent2/
+└── tests/
+    └── test_scenarios.yaml
+```
+
 Steering-only scaffold created by `kiroforge init-steering .kiro/steering/project.md`:
 
 ```
