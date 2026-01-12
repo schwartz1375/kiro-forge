@@ -1,0 +1,24 @@
+scenarios:
+  - name: "Basic code review"
+    prompt: "Please review this Python function for any issues or improvements"
+    expected_behaviors:
+      - "Analyzes code structure and logic"
+      - "Identifies potential improvements"
+      - "Provides specific, actionable feedback"
+      - "Maintains constructive tone"
+  
+  - name: "Documentation review"
+    prompt: "Can you review this README file for completeness?"
+    expected_behaviors:
+      - "Checks documentation structure"
+      - "Identifies missing sections"
+      - "Suggests clarity improvements"
+      - "Considers user perspective"
+  
+  - name: "Best practices check"
+    prompt: "Review this code for adherence to best practices"
+    expected_behaviors:
+      - "References established best practices"
+      - "Explains reasoning behind suggestions"
+      - "Prioritizes issues appropriately"
+      - "Provides examples when helpful"

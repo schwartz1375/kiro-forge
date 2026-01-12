@@ -145,3 +145,138 @@ def get_steering_templates(template_type: str) -> Dict[str, str]:
     except TemplateNotFoundError:
         # Fallback to empty templates for unknown sets
         return {"steering.md": "# Steering\n\nAdd steering guidance here.\n"}
+    def get_agent_templates(self) -> List[str]:
+        """Get available agent templates.
+        
+        Returns:
+            List of agent template names
+        """
+        agents_dir = self.templates_dir / "agents"
+        if not agents_dir.exists():
+            return []
+        
+        return [
+            item.name for item in agents_dir.iterdir()
+            if item.is_dir() and (item / "agent.yaml").exists()
+        ]
+    
+    def get_collection_templates(self) -> List[str]:
+        """Get available collection templates.
+        
+        Returns:
+            List of collection template names
+        """
+        collections_dir = self.templates_dir / "collections"
+        if not collections_dir.exists():
+            return []
+        
+        return [
+            item.name for item in collections_dir.iterdir()
+            if item.is_dir() and (item / "collection.yaml").exists()
+        ]
+    
+    def copy_agent_template(self, template_name: str, target_dir: Path) -> None:
+        """Copy agent template to target directory.
+        
+        Args:
+            template_name: Name of the agent template
+            target_dir: Target directory to copy template to
+            
+        Raises:
+            TemplateNotFoundError: If template doesn't exist
+            TemplateError: If copy fails
+        """
+        template_dir = self.templates_dir / "agents" / template_name
+        if not template_dir.exists():
+            available = self.get_agent_templates()
+            raise TemplateNotFoundError(f"Agent template '{template_name}' not found. Available: {', '.join(available)}")
+        
+        try:
+            shutil.copytree(template_dir, target_dir, dirs_exist_ok=True)
+        except Exception as exc:
+            raise TemplateError(f"Failed to copy agent template: {exc}")
+    
+    def copy_collection_template(self, template_name: str, target_dir: Path) -> None:
+        """Copy collection template to target directory.
+        
+        Args:
+            template_name: Name of the collection template
+            target_dir: Target directory to copy template to
+            
+        Raises:
+            TemplateNotFoundError: If template doesn't exist
+            TemplateError: If copy fails
+        """
+        template_dir = self.templates_dir / "collections" / template_name
+        if not template_dir.exists():
+            available = self.get_collection_templates()
+            raise TemplateNotFoundError(f"Collection template '{template_name}' not found. Available: {', '.join(available)}")
+        
+        try:
+            shutil.copytree(template_dir, target_dir, dirs_exist_ok=True)
+        except Exception as exc:
+            raise TemplateError(f"Failed to copy collection template: {exc}")
+    
+    def get_agent_template_info(self, template_name: str) -> Dict[str, str]:
+        """Get information about an agent template.
+        
+        Args:
+            template_name: Name of the agent template
+            
+        Returns:
+            Dictionary with template information
+            
+        Raises:
+            TemplateNotFoundError: If template doesn't exist
+        """
+        template_dir = self.templates_dir / "agents" / template_name
+        if not template_dir.exists():
+            raise TemplateNotFoundError(f"Agent template '{template_name}' not found")
+        
+        info = {"name": template_name, "description": "Agent template"}
+        
+        # Try to read description from agent.yaml
+        agent_yaml = template_dir / "agent.yaml"
+        if agent_yaml.exists():
+            try:
+                import yaml
+                with agent_yaml.open("r") as f:
+                    data = yaml.safe_load(f)
+                    if "meta" in data and "description" in data["meta"]:
+                        info["description"] = data["meta"]["description"]
+            except Exception:
+                pass  # Use default description
+        
+        return info
+    
+    def get_collection_template_info(self, template_name: str) -> Dict[str, str]:
+        """Get information about a collection template.
+        
+        Args:
+            template_name: Name of the collection template
+            
+        Returns:
+            Dictionary with template information
+            
+        Raises:
+            TemplateNotFoundError: If template doesn't exist
+        """
+        template_dir = self.templates_dir / "collections" / template_name
+        if not template_dir.exists():
+            raise TemplateNotFoundError(f"Collection template '{template_name}' not found")
+        
+        info = {"name": template_name, "description": "Collection template"}
+        
+        # Try to read description from collection.yaml
+        collection_yaml = template_dir / "collection.yaml"
+        if collection_yaml.exists():
+            try:
+                import yaml
+                with collection_yaml.open("r") as f:
+                    data = yaml.safe_load(f)
+                    if "meta" in data and "description" in data["meta"]:
+                        info["description"] = data["meta"]["description"]
+            except Exception:
+                pass  # Use default description
+        
+        return info

@@ -1,0 +1,90 @@
+meta:
+  name: backend-team
+  description: Database and API specialists working together on backend systems
+  version: "1.0.0"
+  author: "KiroForge Templates"
+
+shared_context:
+  powers:
+    - "./shared/powers/company-standards"
+    - "./shared/powers/security-policies"
+  
+  steering:
+    - "./shared/steering/team-practices.md"
+    - "./shared/steering/code-review-standards.md"
+  
+  constraints:
+    allowed_tools: 
+      - "filesystem.*"
+      - "database.*"
+      - "api.*"
+    denied_tools: 
+      - "network.external.*"
+      - "system.admin.*"
+    max_concurrent_agents: 5
+    requires_network: false
+
+agents:
+  - path: "./agents/database-specialist"
+    role: "database_expert"
+    description: "Handles database design, optimization, and migrations"
+  
+  - path: "./agents/api-reviewer"
+    role: "api_specialist"
+    description: "Reviews API designs for consistency and best practices"
+  
+  - path: "./agents/backend-coordinator"
+    role: "coordinator"
+    can_spawn_subagents: true
+    description: "Coordinates complex multi-agent backend tasks"
+
+coordination:
+  patterns:
+    - "database questions -> database_expert"
+    - "api reviews -> api_specialist"
+    - "complex backend tasks -> coordinator spawns subagents"
+  
+  shared_memory:
+    enabled: true
+    scope: "collection"
+
+tests:
+  test_path: "tests/"
+  scenarios:
+    - name: "Database schema review workflow"
+      description: "Coordinate database schema review with API impact analysis"
+      prompt: "Review this database migration and check API compatibility"
+      expected_flow:
+        - coordinator: "Analyzes request and delegates appropriately"
+        - database_expert: "Reviews schema changes for best practices"
+        - api_specialist: "Checks API compatibility and breaking changes"
+      expected_outcomes:
+        - "Schema follows database best practices"
+        - "API changes are backward compatible"
+        - "Migration plan includes rollback procedures"
+      subagent_calls:
+        - agent: "database-specialist"
+          expected_delegation: true
+        - agent: "api-reviewer"
+          expected_delegation: true
+    
+    - name: "API design review with database implications"
+      description: "Review API design considering database performance"
+      prompt: "Review this new API endpoint design"
+      expected_flow:
+        - coordinator: "Routes to appropriate specialists"
+        - api_specialist: "Reviews API design standards"
+        - database_expert: "Analyzes database performance implications"
+      expected_outcomes:
+        - "API follows REST best practices"
+        - "Database queries are optimized"
+        - "Proper indexing strategy is recommended"
+      subagent_calls:
+        - agent: "api-reviewer"
+          expected_delegation: true
+        - agent: "database-specialist"
+          expected_delegation: true
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]

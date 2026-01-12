@@ -1,0 +1,35 @@
+meta:
+  name: simple-reviewer
+  description: Simple code and document reviewer
+  version: "1.0.0"
+  author: "KiroForge Examples"
+
+identity:
+  prompt_file: system-prompt.md
+  expertise: 
+    - "code-review"
+    - "documentation"
+    - "best-practices"
+
+powers:
+  - "./powers/review-standards"
+
+constraints:
+  allowed_tools: 
+    - "filesystem.read"
+    - "filesystem.write"
+  denied_tools: 
+    - "network.*"
+    - "system.*"
+  requires_network: false
+
+tests:
+  test_path: "tests/"
+  expected_behaviors:
+    - "Reviews code for common issues"
+    - "Suggests improvements following best practices"
+    - "Maintains helpful and constructive tone"
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]

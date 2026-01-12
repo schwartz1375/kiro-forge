@@ -12,13 +12,14 @@ from rich.table import Table
 
 from .executor import run_prompt
 from .harness import PowerContext, load_test_suite, run_suite
-from .parser import load_power_spec
+from .parser import load_power_spec, load_agent_spec, load_collection_spec, AgentSpecError, CollectionSpecError
 from .router import select_powers
 from .security import validate_command_input, validate_identifier, redact_secrets
 from .steering import validate_steering as run_steering_validation
 from .templates import get_steering_templates, TemplateError, TemplateNotFoundError
 from .config import get_config, ConfigManager
-from .validator import validate_power
+from .validator import validate_power, validate_agent, validate_collection
+from .exporter import export_agent_to_kiro_json, export_collection_to_kiro_json, save_agent_export, save_collection_export, ExportError
 
 app = typer.Typer(help="KiroForge CLI")
 console = Console()
@@ -1508,3 +1509,546 @@ def config(
 
 if __name__ == "__main__":
     app()
+
+# Agent and Collection CLI Commands
+
+def _generate_agent_yaml(agent_name: str, interactive: bool = False) -> str:
+    """Generate agent.yaml content."""
+    if interactive:
+        description = typer.prompt("Agent description")
+        expertise = typer.prompt("Expertise areas (comma-separated)", default="")
+        expertise_list = [e.strip() for e in expertise.split(",") if e.strip()]
+    else:
+        description = f"{agent_name.replace('-', ' ').replace('_', ' ').title()} agent"
+        expertise_list = []
+    
+    return f"""meta:
+  name: {agent_name}
+  description: {description}
+  version: "1.0.0"
+  author: "Your Name"
+
+identity:
+  prompt_file: system-prompt.md
+  expertise: {expertise_list}
+
+powers:
+  # Add power references here
+  # - "./powers/example-power"
+
+constraints:
+  allowed_tools: ["filesystem.*"]
+  denied_tools: ["network.external.*"]
+  requires_network: false
+
+tests:
+  test_path: "tests/"
+  expected_behaviors:
+    - "Provides helpful responses"
+    - "Follows specified constraints"
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]
+"""
+
+
+def _generate_system_prompt(agent_name: str, interactive: bool = False) -> str:
+    """Generate system-prompt.md content."""
+    title = agent_name.replace('-', ' ').replace('_', ' ').title()
+    
+    if interactive:
+        role_description = typer.prompt("Role description", default=f"You are a {title} agent")
+        capabilities = typer.prompt("Key capabilities (comma-separated)", default="")
+        cap_list = [c.strip() for c in capabilities.split(",") if c.strip()]
+    else:
+        role_description = f"You are a {title} agent"
+        cap_list = ["Analyze and provide insights", "Follow best practices", "Maintain helpful and professional tone"]
+    
+    capabilities_section = ""
+    if cap_list:
+        capabilities_section = "\n\n## Capabilities\n\n" + "\n".join(f"- {cap}" for cap in cap_list)
+    
+    return f"""# {title} Agent
+
+{role_description}.{capabilities_section}
+
+## Guidelines
+
+- Provide clear and actionable responses
+- Ask clarifying questions when needed
+- Follow all specified constraints and policies
+- Maintain a helpful and professional tone
+
+## Constraints
+
+- Only use approved tools and resources
+- Respect security and privacy requirements
+- Follow organizational policies and standards
+"""
+
+
+def _generate_test_template() -> str:
+    """Generate test template content."""
+    return """# Agent Tests
+
+scenarios:
+  - name: "Basic functionality test"
+    prompt: "Hello, can you help me?"
+    expected_behaviors:
+      - "Responds helpfully"
+      - "Follows constraints"
+    
+  - name: "Constraint compliance test"
+    prompt: "Can you access external networks?"
+    expected_behaviors:
+      - "Explains constraint limitations"
+      - "Suggests alternatives within constraints"
+
+# Add more test scenarios as needed
+"""
+
+
+def _generate_collection_yaml(collection_name: str, interactive: bool = False) -> str:
+    """Generate collection.yaml content."""
+    if interactive:
+        description = typer.prompt("Collection description")
+    else:
+        description = f"{collection_name.replace('-', ' ').replace('_', ' ').title()} agent collection"
+    
+    return f"""meta:
+  name: {collection_name}
+  description: {description}
+  version: "1.0.0"
+  author: "Your Name"
+
+shared_context:
+  powers:
+    # Shared powers available to all agents
+    # - "./shared/powers/common-standards"
+  
+  steering:
+    # Common steering files
+    # - "./shared/steering/team-practices.md"
+  
+  constraints:
+    allowed_tools: ["filesystem.*"]
+    denied_tools: ["network.external.*"]
+    max_concurrent_agents: 5
+    requires_network: false
+
+agents:
+  # Reference agent modules with roles
+  # - path: "./agents/example-agent"
+  #   role: "example_role"
+  #   description: "Example agent description"
+
+coordination:
+  patterns:
+    # Define coordination patterns
+    # - "complex tasks -> coordinator spawns subagents"
+  
+  shared_memory:
+    enabled: true
+    scope: "collection"
+
+tests:
+  test_path: "tests/"
+  scenarios: []
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]
+"""
+
+
+@app.command()
+def init_agent(
+    path: Path = typer.Argument(..., help="Directory to create the new agent in"),
+    name: str = typer.Option(None, "--name", help="Agent name (defaults to directory name)"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive agent creation"),
+) -> None:
+    """Initialize a new agent module with scaffolding."""
+    if path.exists() and any(path.iterdir()):
+        console.print("[red]Target directory is not empty[/red]")
+        raise typer.Exit(1)
+    
+    agent_name = name or path.name
+    if not re.match(r"^[a-zA-Z0-9_-]+$", agent_name):
+        console.print("[red]Invalid agent name. Use only letters, numbers, hyphens, and underscores.[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[cyan]Creating agent module: {agent_name}[/cyan]")
+    
+    # Create agent structure
+    path.mkdir(parents=True, exist_ok=True)
+    
+    # Create agent.yaml
+    agent_yaml = _generate_agent_yaml(agent_name, interactive)
+    (path / "agent.yaml").write_text(agent_yaml)
+    
+    # Create system-prompt.md
+    prompt_content = _generate_system_prompt(agent_name, interactive)
+    (path / "system-prompt.md").write_text(prompt_content)
+    
+    # Create powers directory
+    (path / "powers").mkdir(exist_ok=True)
+    (path / "powers" / ".gitkeep").write_text("# Add power modules here\n")
+    
+    # Create tests directory
+    (path / "tests").mkdir(exist_ok=True)
+    (path / "tests" / "test_responses.yaml").write_text(_generate_test_template())
+    
+    console.print(f"[green]✓ Agent module created at {path}[/green]")
+    console.print(f"[yellow]Next steps:[/yellow]")
+    console.print(f"  1. Edit {path}/system-prompt.md")
+    console.print(f"  2. Add powers to {path}/powers/")
+    console.print(f"  3. Update {path}/agent.yaml with power references")
+    console.print(f"  4. Run: kiroforge validate-agent {path}")
+
+
+@app.command()
+def validate_agent(
+    path: Path = typer.Argument(..., help="Path to an agent directory")
+) -> None:
+    """Validate an agent module."""
+    console.print(f"[cyan]Validating agent: {path.name}[/cyan]")
+    
+    result = validate_agent(path)
+    if result.ok:
+        console.print(f"[green]✓ Agent {path.name} is valid[/green]")
+    else:
+        console.print(f"[red]✗ Agent {path.name} has issues:[/red]")
+        for issue in result.issues:
+            color = "red" if issue.level == "error" else "yellow"
+            console.print(f"  [{color}]{issue.level.upper()}: {issue.message}[/{color}]")
+        
+        error_count = sum(1 for issue in result.issues if issue.level == "error")
+        warning_count = sum(1 for issue in result.issues if issue.level == "warning")
+        
+        if error_count > 0:
+            console.print(f"[red]Found {error_count} error(s) and {warning_count} warning(s)[/red]")
+            raise typer.Exit(1)
+        else:
+            console.print(f"[yellow]Found {warning_count} warning(s)[/yellow]")
+
+
+@app.command()
+def export_agent(
+    path: Path = typer.Argument(..., help="Path to an agent directory"),
+    output: Path = typer.Option(None, "--output", "-o", help="Output file (defaults to {agent-name}.json)"),
+) -> None:
+    """Export agent to Kiro-native JSON format."""
+    console.print(f"[cyan]Exporting agent: {path.name}[/cyan]")
+    
+    # Validate first
+    result = validate_agent(path)
+    if not result.ok:
+        console.print("[red]Cannot export invalid agent. Run validate-agent first.[/red]")
+        for issue in result.issues:
+            if issue.level == "error":
+                console.print(f"  [red]ERROR: {issue.message}[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        spec = load_agent_spec(path)
+        kiro_json = export_agent_to_kiro_json(path, spec)
+        
+        output_file = output or Path(f"{spec.meta.name}.json")
+        save_agent_export(kiro_json, output_file)
+        
+        console.print(f"[green]✓ Agent exported to {output_file}[/green]")
+        console.print(f"[dim]Export includes {len(kiro_json.get('tools', []))} tools and {len(kiro_json.get('mcpServers', {}))} MCP servers[/dim]")
+        
+    except (AgentSpecError, ExportError) as exc:
+        console.print(f"[red]Export failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def test_agent(
+    path: Path = typer.Argument(..., help="Path to agent directory")
+) -> None:
+    """Run behavioral tests for an agent."""
+    from .harness import run_agent_tests, print_agent_test_results
+    
+    console.print(f"[cyan]Testing agent: {path.name}[/cyan]")
+    
+    try:
+        context = run_agent_tests(path)
+        print_agent_test_results(context)
+        
+        if not context.all_passed:
+            raise typer.Exit(1)
+            
+    except Exception as exc:
+        console.print(f"[red]Agent testing failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def init_collection(
+    path: Path = typer.Argument(..., help="Directory to create the collection in"),
+    name: str = typer.Option(None, "--name", help="Collection name (defaults to directory name)"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive collection creation"),
+) -> None:
+    """Initialize a new agent collection."""
+    if path.exists() and any(path.iterdir()):
+        console.print("[red]Target directory is not empty[/red]")
+        raise typer.Exit(1)
+    
+    collection_name = name or path.name
+    if not re.match(r"^[a-zA-Z0-9_-]+$", collection_name):
+        console.print("[red]Invalid collection name. Use only letters, numbers, hyphens, and underscores.[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[cyan]Creating collection: {collection_name}[/cyan]")
+    
+    # Create collection structure
+    path.mkdir(parents=True, exist_ok=True)
+    
+    # Create collection.yaml
+    collection_yaml = _generate_collection_yaml(collection_name, interactive)
+    (path / "collection.yaml").write_text(collection_yaml)
+    
+    # Create shared directory structure
+    (path / "shared").mkdir(exist_ok=True)
+    (path / "shared" / "powers").mkdir(exist_ok=True)
+    (path / "shared" / "powers" / ".gitkeep").write_text("# Add shared power modules here\n")
+    (path / "shared" / "steering").mkdir(exist_ok=True)
+    (path / "shared" / "steering" / ".gitkeep").write_text("# Add shared steering files here\n")
+    
+    # Create agents directory
+    (path / "agents").mkdir(exist_ok=True)
+    (path / "agents" / ".gitkeep").write_text("# Add agent modules here\n")
+    
+    # Create tests directory
+    (path / "tests").mkdir(exist_ok=True)
+    (path / "tests" / ".gitkeep").write_text("# Add collection tests here\n")
+    
+    console.print(f"[green]✓ Collection created at {path}[/green]")
+    console.print(f"[yellow]Next steps:[/yellow]")
+    console.print(f"  1. Add agent modules to {path}/agents/")
+    console.print(f"  2. Update {path}/collection.yaml with agent references")
+    console.print(f"  3. Add shared resources to {path}/shared/")
+    console.print(f"  4. Run: kiroforge validate-collection {path}")
+
+
+@app.command()
+def validate_collection(
+    path: Path = typer.Argument(..., help="Path to a collection directory")
+) -> None:
+    """Validate an agent collection and all its agents."""
+    console.print(f"[cyan]Validating collection: {path.name}[/cyan]")
+    
+    result = validate_collection(path)
+    if result.ok:
+        console.print(f"[green]✓ Collection {path.name} is valid[/green]")
+    else:
+        console.print(f"[red]✗ Collection {path.name} has issues:[/red]")
+        for issue in result.issues:
+            color = "red" if issue.level == "error" else "yellow"
+            console.print(f"  [{color}]{issue.level.upper()}: {issue.message}[/{color}]")
+        
+        error_count = sum(1 for issue in result.issues if issue.level == "error")
+        warning_count = sum(1 for issue in result.issues if issue.level == "warning")
+        
+        if error_count > 0:
+            console.print(f"[red]Found {error_count} error(s) and {warning_count} warning(s)[/red]")
+            raise typer.Exit(1)
+        else:
+            console.print(f"[yellow]Found {warning_count} warning(s)[/yellow]")
+
+
+@app.command()
+def export_collection(
+    path: Path = typer.Argument(..., help="Path to a collection directory"),
+    output_dir: Path = typer.Option(None, "--output", "-o", help="Output directory (defaults to ./exported)"),
+) -> None:
+    """Export collection to multiple Kiro-native JSON files."""
+    console.print(f"[cyan]Exporting collection: {path.name}[/cyan]")
+    
+    # Validate first
+    result = validate_collection(path)
+    if not result.ok:
+        console.print("[red]Cannot export invalid collection. Run validate-collection first.[/red]")
+        for issue in result.issues:
+            if issue.level == "error":
+                console.print(f"  [red]ERROR: {issue.message}[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        spec = load_collection_spec(path)
+        export_data = export_collection_to_kiro_json(path, spec)
+        
+        output_directory = output_dir or Path("exported")
+        created_files = save_collection_export(export_data, output_directory)
+        
+        console.print(f"[green]✓ Collection exported to {output_directory}[/green]")
+        console.print(f"[dim]Created {len(created_files)} files:[/dim]")
+        for file_path in created_files:
+            console.print(f"  [dim]- {file_path.name}[/dim]")
+        
+    except (CollectionSpecError, ExportError) as exc:
+        console.print(f"[red]Export failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def test_collection(
+    path: Path = typer.Argument(..., help="Path to collection directory")
+) -> None:
+    """Run multi-agent tests for a collection."""
+    from .harness import run_collection_tests, print_collection_test_results
+    
+    console.print(f"[cyan]Testing collection: {path.name}[/cyan]")
+    
+    try:
+        context = run_collection_tests(path)
+        print_collection_test_results(context)
+        
+        if not context.all_passed:
+            raise typer.Exit(1)
+            
+    except Exception as exc:
+        console.print(f"[red]Collection testing failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+@app.command()
+def list_agent_templates() -> None:
+    """List available agent templates."""
+    from .templates import TemplateManager
+    
+    template_manager = TemplateManager()
+    templates = template_manager.get_agent_templates()
+    
+    if not templates:
+        console.print("[yellow]No agent templates found[/yellow]")
+        return
+    
+    console.print("[cyan]Available Agent Templates:[/cyan]")
+    for template in templates:
+        try:
+            info = template_manager.get_agent_template_info(template)
+            console.print(f"  [green]{template}[/green]: {info['description']}")
+        except Exception:
+            console.print(f"  [green]{template}[/green]: Agent template")
+
+
+@app.command()
+def list_collection_templates() -> None:
+    """List available collection templates."""
+    from .templates import TemplateManager
+    
+    template_manager = TemplateManager()
+    templates = template_manager.get_collection_templates()
+    
+    if not templates:
+        console.print("[yellow]No collection templates found[/yellow]")
+        return
+    
+    console.print("[cyan]Available Collection Templates:[/cyan]")
+    for template in templates:
+        try:
+            info = template_manager.get_collection_template_info(template)
+            console.print(f"  [green]{template}[/green]: {info['description']}")
+        except Exception:
+            console.print(f"  [green]{template}[/green]: Collection template")
+
+
+@app.command()
+def init_agent_from_template(
+    path: Path = typer.Argument(..., help="Directory to create the agent in"),
+    template: str = typer.Argument(..., help="Template name to use"),
+    name: str = typer.Option(None, "--name", help="Agent name (defaults to directory name)"),
+) -> None:
+    """Initialize a new agent from a template."""
+    from .templates import TemplateManager, TemplateNotFoundError, TemplateError
+    
+    if path.exists() and any(path.iterdir()):
+        console.print("[red]Target directory is not empty[/red]")
+        raise typer.Exit(1)
+    
+    agent_name = name or path.name
+    if not re.match(r"^[a-zA-Z0-9_-]+$", agent_name):
+        console.print("[red]Invalid agent name. Use only letters, numbers, hyphens, and underscores.[/red]")
+        raise typer.Exit(1)
+    
+    template_manager = TemplateManager()
+    
+    try:
+        console.print(f"[cyan]Creating agent from template: {template}[/cyan]")
+        path.mkdir(parents=True, exist_ok=True)
+        template_manager.copy_agent_template(template, path)
+        
+        # Update agent name in agent.yaml if different from template
+        agent_yaml = path / "agent.yaml"
+        if agent_yaml.exists() and agent_name != template:
+            content = agent_yaml.read_text()
+            # Simple replacement - could be more sophisticated
+            content = content.replace(f"name: {template}", f"name: {agent_name}")
+            agent_yaml.write_text(content)
+        
+        console.print(f"[green]✓ Agent created from template at {path}[/green]")
+        console.print(f"[yellow]Next steps:[/yellow]")
+        console.print(f"  1. Review and customize {path}/agent.yaml")
+        console.print(f"  2. Edit {path}/system-prompt.md")
+        console.print(f"  3. Add powers to {path}/powers/")
+        console.print(f"  4. Run: kiroforge validate-agent {path}")
+        
+    except TemplateNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        console.print("[dim]Use 'kiroforge list-agent-templates' to see available templates[/dim]")
+        raise typer.Exit(1)
+    except TemplateError as exc:
+        console.print(f"[red]Template error: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def init_collection_from_template(
+    path: Path = typer.Argument(..., help="Directory to create the collection in"),
+    template: str = typer.Argument(..., help="Template name to use"),
+    name: str = typer.Option(None, "--name", help="Collection name (defaults to directory name)"),
+) -> None:
+    """Initialize a new collection from a template."""
+    from .templates import TemplateManager, TemplateNotFoundError, TemplateError
+    
+    if path.exists() and any(path.iterdir()):
+        console.print("[red]Target directory is not empty[/red]")
+        raise typer.Exit(1)
+    
+    collection_name = name or path.name
+    if not re.match(r"^[a-zA-Z0-9_-]+$", collection_name):
+        console.print("[red]Invalid collection name. Use only letters, numbers, hyphens, and underscores.[/red]")
+        raise typer.Exit(1)
+    
+    template_manager = TemplateManager()
+    
+    try:
+        console.print(f"[cyan]Creating collection from template: {template}[/cyan]")
+        path.mkdir(parents=True, exist_ok=True)
+        template_manager.copy_collection_template(template, path)
+        
+        # Update collection name in collection.yaml if different from template
+        collection_yaml = path / "collection.yaml"
+        if collection_yaml.exists() and collection_name != template:
+            content = collection_yaml.read_text()
+            # Simple replacement - could be more sophisticated
+            content = content.replace(f"name: {template}", f"name: {collection_name}")
+            collection_yaml.write_text(content)
+        
+        console.print(f"[green]✓ Collection created from template at {path}[/green]")
+        console.print(f"[yellow]Next steps:[/yellow]")
+        console.print(f"  1. Review and customize {path}/collection.yaml")
+        console.print(f"  2. Add agent modules to {path}/agents/")
+        console.print(f"  3. Add shared resources to {path}/shared/")
+        console.print(f"  4. Run: kiroforge validate-collection {path}")
+        
+    except TemplateNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        console.print("[dim]Use 'kiroforge list-collection-templates' to see available templates[/dim]")
+        raise typer.Exit(1)
+    except TemplateError as exc:
+        console.print(f"[red]Template error: {exc}[/red]")
+        raise typer.Exit(1)

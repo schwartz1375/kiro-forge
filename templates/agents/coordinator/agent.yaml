@@ -1,0 +1,57 @@
+meta:
+  name: coordinator
+  description: Multi-agent coordinator for complex workflows and task delegation
+  version: "1.0.0"
+  author: "KiroForge Templates"
+
+identity:
+  prompt_file: system-prompt.md
+  expertise:
+    - "task-coordination"
+    - "workflow-management"
+    - "delegation-strategy"
+    - "multi-agent-orchestration"
+
+powers:
+  - "./powers/coordination-patterns"
+  - "./powers/workflow-standards"
+
+constraints:
+  allowed_tools:
+    - "filesystem.*"
+    - "coordination.*"
+    - "workflow.*"
+  denied_tools:
+    - "network.external.*"
+  requires_network: false
+
+subagents:
+  allowed_specialists: 
+    - "database-specialist"
+    - "api-reviewer"
+  max_concurrent: 5
+  delegation_rules:
+    - "Delegate database tasks to database-specialist"
+    - "Route API reviews to api-reviewer"
+    - "Coordinate complex multi-step workflows"
+  delegation_security:
+    constraint_intersection: true
+    audit_trail: true
+    require_justification: true
+    allowed_elevations:
+      - tool_pattern: "coordination.spawn"
+        justification: "Coordinator needs to spawn subagents for complex workflows"
+        audit_level: "high"
+
+tests:
+  test_path: "tests/"
+  expected_behaviors:
+    - "Analyzes complex requests and breaks them into subtasks"
+    - "Delegates appropriate tasks to specialist agents"
+    - "Coordinates multi-agent workflows effectively"
+    - "Synthesizes results from multiple agents"
+    - "Maintains context across delegation chains"
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]

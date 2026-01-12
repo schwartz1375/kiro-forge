@@ -3,7 +3,7 @@
 [![Tests](https://img.shields.io/badge/tests-passing-green)](tests/)
 [![Python](https://img.shields.io/badge/python-3.12+-blue)](pyproject.toml)
 
-KiroForge is a Python toolkit for authoring, validating, and testing Kiro Powers - modular agent capabilities that bundle tools, steering, and behavioral constraints into reusable, testable units.
+KiroForge is a Python toolkit for authoring, validating, and testing Kiro Powers, Custom Agents, and Agent Collections - modular capabilities that bundle tools, steering, and behavioral constraints into reusable, testable units.
 
 ## Table of Contents
 
@@ -18,13 +18,17 @@ KiroForge is a Python toolkit for authoring, validating, and testing Kiro Powers
 
 ## Goals
 
-- Define a clear, Kiro-native `POWER.md` schema.
-- Validate power structure and metadata.
-- Run behavioral tests against power expectations.
+- Define clear, Kiro-native schemas for Powers, Agents, and Collections
+- Validate structure, metadata, and security constraints
+- Run behavioral tests against expectations
+- Enable secure multi-agent coordination with delegation controls
+- Export Kiro-compatible configurations for direct import
 
 ## Concept
 
-High-level overview: [CONCEPT.md](CONCEPT.md)
+- **Powers**: [CONCEPT.md](CONCEPT.md) - Modular agent capabilities
+- **Agents**: [AGENT-MODULE-CONCEPT.md](AGENT-MODULE-CONCEPT.md) - Custom agents with identity and delegation
+- **Collections**: Multi-agent coordination with shared context and governance
 
 ## Blueprint: What a Power Produces
 
@@ -217,6 +221,36 @@ kiroforge init --interactive ./my-new-power --raw-output  # Skip output cleaning
 kiroforge validate ./my-new-power                # Validate power structure
 kiroforge run-tests ./my-new-power               # Run behavioral tests
 kiroforge run ./my-new-power "Test prompt"       # Test locally with kiro-cli (optional)
+```
+
+### Agents
+
+```bash
+# Agent Management
+kiroforge init-agent ./my-agent                  # Create a new agent
+kiroforge init-agent --interactive ./my-agent    # Interactive agent creation
+kiroforge validate-agent ./my-agent              # Validate agent structure and security
+kiroforge test-agent ./my-agent                  # Run agent behavioral tests
+kiroforge export-agent ./my-agent                # Export to Kiro-native JSON
+
+# Agent Templates
+kiroforge list-agent-templates                   # List available agent templates
+kiroforge init-agent-from-template ./db-agent database-specialist  # Create from template
+```
+
+### Collections
+
+```bash
+# Collection Management
+kiroforge init-collection ./backend-team         # Create a new collection
+kiroforge init-collection --interactive ./backend-team  # Interactive creation
+kiroforge validate-collection ./backend-team     # Validate collection and all agents
+kiroforge test-collection ./backend-team         # Run multi-agent tests
+kiroforge export-collection ./backend-team       # Export all agents + manifest
+
+# Collection Templates
+kiroforge list-collection-templates              # List available collection templates
+kiroforge init-collection-from-template ./team backend-team  # Create from template
 ```
 
 The `run` command is optional - it lets you test your power against local `kiro-cli` to see how it behaves before sharing it.

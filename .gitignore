@@ -196,3 +196,38 @@ public
 # Temporary folders
 tmp/
 temp/
+# KiroForge Agent and Collection Development
+# Generated agent scaffolds during development
+/test-agents/
+/example-agents/
+/test-collections/
+/example-collections/
+
+# Exported agent JSON files (unless specifically needed)
+*.agent.json
+*-manifest.json
+/exported/
+
+# Agent and collection development artifacts
+/dev-agents/
+/dev-collections/
+/scratch-agents/
+/scratch-collections/
+
+# Template development
+/template-dev/
+/custom-templates/
+
+# Agent testing artifacts
+agent-test-results/
+collection-test-results/
+test-outputs/
+
+# Kiro CLI integration artifacts
+.kiro-temp/
+kiro-output/
+kiro-logs/
+
+# Agent power development
+/agent-powers/
+/collection-powers/

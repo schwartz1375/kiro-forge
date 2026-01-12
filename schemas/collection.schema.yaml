@@ -1,0 +1,178 @@
+# Collection schema for collection.yaml validation
+type: object
+required: [meta, shared_context, agents]
+properties:
+  meta:
+    type: object
+    required: [name, description, version]
+    properties:
+      name:
+        type: string
+        pattern: "^[a-zA-Z0-9_-]+$"
+        description: "Collection identifier"
+      description:
+        type: string
+        minLength: 10
+        description: "Collection description"
+      version:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+$"
+        description: "Semantic version"
+      author:
+        type: string
+        description: "Collection author"
+        
+  shared_context:
+    type: object
+    properties:
+      powers:
+        type: array
+        items:
+          type: string
+          pattern: "^\\./.*"
+        description: "Shared powers available to all agents"
+      steering:
+        type: array
+        items:
+          type: string
+          pattern: "\\.md$"
+        description: "Common steering files"
+      constraints:
+        type: object
+        properties:
+          allowed_tools:
+            type: array
+            items:
+              type: string
+            description: "Collection-wide allowed tools"
+          denied_tools:
+            type: array
+            items:
+              type: string
+            description: "Collection-wide denied tools"
+          max_concurrent_agents:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+            description: "Maximum concurrent agents in collection"
+          requires_network:
+            type: boolean
+            description: "Collection network access policy"
+        description: "Collection-wide constraints"
+    description: "Shared context for all agents"
+    
+  agents:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      required: [path, role]
+      properties:
+        path:
+          type: string
+          pattern: "^\\./.*"
+          description: "Path to agent module directory"
+        role:
+          type: string
+          pattern: "^[a-zA-Z0-9_]+$"
+          description: "Descriptive role name (not used for resolution)"
+        description:
+          type: string
+          description: "Agent description within collection"
+        can_spawn_subagents:
+          type: boolean
+          default: false
+          description: "Whether this agent can spawn subagents"
+    description: "Agent registry with roles and metadata"
+    
+  coordination:
+    type: object
+    properties:
+      patterns:
+        type: array
+        items:
+          type: string
+          pattern: ".* -> .*"
+        description: "Coordination patterns (must contain ' -> ' arrow)"
+      shared_memory:
+        type: object
+        properties:
+          enabled:
+            type: boolean
+            default: true
+            description: "Enable shared memory between agents"
+          scope:
+            enum: ["collection", "workspace", "global"]
+            default: "collection"
+            description: "Shared memory scope"
+        description: "Shared memory configuration"
+    description: "Agent coordination rules"
+    
+  tests:
+    type: object
+    properties:
+      test_path:
+        type: string
+        default: "tests/"
+        description: "Path to test directory"
+      scenarios:
+        type: array
+        items:
+          type: object
+          required: [name, description]
+          properties:
+            name:
+              type: string
+              description: "Test scenario name"
+            description:
+              type: string
+              description: "Test scenario description"
+            prompt:
+              type: string
+              description: "Test prompt"
+            expected_flow:
+              type: array
+              items:
+                type: object
+              description: "Expected agent interaction flow"
+            expected_outcomes:
+              type: array
+              items:
+                type: string
+              description: "Expected test outcomes"
+            subagent_calls:
+              type: array
+              items:
+                type: object
+                required: [agent, expected_delegation]
+                properties:
+                  agent:
+                    type: string
+                    description: "Agent module name"
+                  expected_delegation:
+                    type: boolean
+                    description: "Whether delegation is expected"
+              description: "Expected subagent delegations"
+        description: "Multi-agent test scenarios"
+    description: "Collection testing configuration"
+    
+  compatibility:
+    type: object
+    properties:
+      kiro_version:
+        type: string
+        pattern: "^>=\\d+\\.\\d+$"
+        description: "Minimum Kiro version requirement"
+      platforms:
+        type: array
+        items:
+          enum: ["darwin", "linux", "windows"]
+        description: "Supported platforms"
+    description: "Compatibility requirements"
+
+# Validation rules:
+# - Agent paths must be unique within collection
+# - Coordination patterns must reference valid agent roles
+# - Shared resources must exist and be readable
+# - All referenced agents must have valid agent.yaml files

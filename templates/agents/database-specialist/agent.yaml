@@ -1,0 +1,49 @@
+meta:
+  name: database-specialist
+  description: Database design, optimization, and migration specialist
+  version: "1.0.0"
+  author: "KiroForge Templates"
+
+identity:
+  prompt_file: system-prompt.md
+  expertise: 
+    - "database-design"
+    - "sql-optimization"
+    - "schema-migrations"
+    - "performance-tuning"
+
+powers:
+  - "./powers/database-patterns"
+  - "./powers/sql-standards"
+
+constraints:
+  allowed_tools: 
+    - "filesystem.*"
+    - "database.*"
+    - "sql.*"
+  denied_tools: 
+    - "network.external.*"
+    - "system.admin.*"
+  requires_network: false
+
+subagents:
+  allowed_specialists: []
+  max_concurrent: 3
+  delegation_rules: []
+  delegation_security:
+    constraint_intersection: true
+    audit_trail: true
+    require_justification: false
+    allowed_elevations: []
+
+tests:
+  test_path: "tests/"
+  expected_behaviors:
+    - "Reviews database schemas for best practices"
+    - "Suggests performance optimizations"
+    - "Validates migration scripts for safety"
+    - "Recommends appropriate indexing strategies"
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]

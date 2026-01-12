@@ -107,3 +107,143 @@ def list_power_files(base: Path, patterns: Iterable[str]) -> list[Path]:
             # Skip invalid patterns
             continue
     return results
+
+# Agent and Collection Parsing
+
+from .models import AgentSpec, CollectionSpec
+import yaml
+from pydantic import ValidationError
+
+# Maximum file sizes for security
+MAX_AGENT_SPEC_SIZE = 1024 * 1024  # 1MB
+MAX_COLLECTION_SPEC_SIZE = 2 * 1024 * 1024  # 2MB
+
+
+class AgentSpecError(Exception):
+    """Base exception for agent specification errors."""
+    pass
+
+
+class AgentSpecFormatError(AgentSpecError):
+    """Agent specification format error."""
+    pass
+
+
+class AgentSpecSizeError(AgentSpecError):
+    """Agent specification size error."""
+    pass
+
+
+class CollectionSpecError(Exception):
+    """Base exception for collection specification errors."""
+    pass
+
+
+class CollectionSpecFormatError(CollectionSpecError):
+    """Collection specification format error."""
+    pass
+
+
+class CollectionSpecSizeError(CollectionSpecError):
+    """Collection specification size error."""
+    pass
+
+
+def load_agent_spec(agent_dir: Path) -> AgentSpec:
+    """Load and validate an agent specification from agent.yaml file.
+    
+    Args:
+        agent_dir: Path to agent directory containing agent.yaml
+        
+    Returns:
+        AgentSpec: Validated agent specification
+        
+    Raises:
+        AgentSpecError: If specification is invalid
+        AgentSpecFormatError: If YAML format is invalid
+        AgentSpecSizeError: If file is too large
+        FileNotFoundError: If agent.yaml doesn't exist
+        PermissionError: If file cannot be read
+    """
+    agent_yaml = agent_dir / "agent.yaml"
+    
+    if not agent_yaml.exists():
+        raise FileNotFoundError(f"Missing agent.yaml in {agent_dir}")
+    
+    # Security: Validate file size
+    file_size = agent_yaml.stat().st_size
+    if file_size > MAX_AGENT_SPEC_SIZE:
+        raise AgentSpecSizeError(f"agent.yaml too large: {file_size} bytes (max: {MAX_AGENT_SPEC_SIZE})")
+    
+    try:
+        with agent_yaml.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        
+        if not isinstance(data, dict):
+            raise AgentSpecFormatError("agent.yaml must contain a YAML object")
+            
+        return AgentSpec.model_validate(data)
+        
+    except yaml.YAMLError as exc:
+        raise AgentSpecFormatError(f"Invalid YAML in agent.yaml: {exc}")
+    except ValidationError as exc:
+        raise AgentSpecError(f"Agent specification validation failed: {exc}")
+    except PermissionError as exc:
+        raise PermissionError(f"Cannot read agent.yaml: {exc}")
+
+
+def load_collection_spec(collection_dir: Path) -> CollectionSpec:
+    """Load and validate a collection specification from collection.yaml file.
+    
+    Args:
+        collection_dir: Path to collection directory containing collection.yaml
+        
+    Returns:
+        CollectionSpec: Validated collection specification
+        
+    Raises:
+        CollectionSpecError: If specification is invalid
+        CollectionSpecFormatError: If YAML format is invalid
+        CollectionSpecSizeError: If file is too large
+        FileNotFoundError: If collection.yaml doesn't exist
+        PermissionError: If file cannot be read
+    """
+    collection_yaml = collection_dir / "collection.yaml"
+    
+    if not collection_yaml.exists():
+        raise FileNotFoundError(f"Missing collection.yaml in {collection_dir}")
+    
+    # Security: Validate file size
+    file_size = collection_yaml.stat().st_size
+    if file_size > MAX_COLLECTION_SPEC_SIZE:
+        raise CollectionSpecSizeError(f"collection.yaml too large: {file_size} bytes (max: {MAX_COLLECTION_SPEC_SIZE})")
+    
+    try:
+        with collection_yaml.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        
+        if not isinstance(data, dict):
+            raise CollectionSpecFormatError("collection.yaml must contain a YAML object")
+            
+        return CollectionSpec.model_validate(data)
+        
+    except yaml.YAMLError as exc:
+        raise CollectionSpecFormatError(f"Invalid YAML in collection.yaml: {exc}")
+    except ValidationError as exc:
+        raise CollectionSpecError(f"Collection specification validation failed: {exc}")
+    except PermissionError as exc:
+        raise PermissionError(f"Cannot read collection.yaml: {exc}")
+
+
+def normalize_power_reference(power_ref: str | dict) -> dict:
+    """Normalize power reference to standard format.
+    
+    Args:
+        power_ref: Either a string path or PowerReference dict
+        
+    Returns:
+        dict: Normalized power reference
+    """
+    if isinstance(power_ref, str):
+        return {"path": power_ref}
+    return power_ref

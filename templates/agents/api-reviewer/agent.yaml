@@ -1,0 +1,51 @@
+meta:
+  name: api-reviewer
+  description: API design, documentation, and standards compliance specialist
+  version: "1.0.0"
+  author: "KiroForge Templates"
+
+identity:
+  prompt_file: system-prompt.md
+  expertise:
+    - "api-design"
+    - "rest-standards"
+    - "openapi-specification"
+    - "api-security"
+    - "documentation"
+
+powers:
+  - "./powers/api-standards"
+  - "./powers/openapi-patterns"
+
+constraints:
+  allowed_tools:
+    - "filesystem.*"
+    - "api.*"
+    - "http.*"
+  denied_tools:
+    - "network.external.*"
+    - "database.write"
+  requires_network: false
+
+subagents:
+  allowed_specialists: []
+  max_concurrent: 3
+  delegation_rules: []
+  delegation_security:
+    constraint_intersection: true
+    audit_trail: true
+    require_justification: false
+    allowed_elevations: []
+
+tests:
+  test_path: "tests/"
+  expected_behaviors:
+    - "Reviews API designs for REST compliance"
+    - "Validates OpenAPI specifications"
+    - "Suggests security best practices"
+    - "Ensures consistent error handling"
+    - "Reviews API documentation quality"
+
+compatibility:
+  kiro_version: ">=1.23"
+  platforms: ["darwin", "linux"]
