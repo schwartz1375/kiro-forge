@@ -18,7 +18,9 @@ from .security import validate_command_input, validate_identifier, redact_secret
 from .steering import validate_steering as run_steering_validation
 from .templates import get_steering_templates, TemplateError, TemplateNotFoundError
 from .config import get_config, ConfigManager
-from .validator import validate_power, validate_agent, validate_collection
+from .validator import validate_power
+from .validator import validate_agent as validator_validate_agent
+from .validator import validate_collection as validator_validate_collection
 from .exporter import export_agent_to_kiro_json, export_collection_to_kiro_json, save_agent_export, save_collection_export, ExportError
 
 app = typer.Typer(help="KiroForge CLI")
@@ -1714,7 +1716,7 @@ def validate_agent(
     """Validate an agent module."""
     console.print(f"[cyan]Validating agent: {path.name}[/cyan]")
     
-    result = validate_agent(path)
+    result = validator_validate_agent(path)
     if result.ok:
         console.print(f"[green]✓ Agent {path.name} is valid[/green]")
     else:
@@ -1841,7 +1843,7 @@ def validate_collection(
     """Validate an agent collection and all its agents."""
     console.print(f"[cyan]Validating collection: {path.name}[/cyan]")
     
-    result = validate_collection(path)
+    result = validator_validate_collection(path)
     if result.ok:
         console.print(f"[green]✓ Collection {path.name} is valid[/green]")
     else:
